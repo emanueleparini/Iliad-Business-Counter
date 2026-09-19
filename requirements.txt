@@ -1,0 +1,4 @@
+requests>=2.31
+keyring>=24
+tzdata>=2024.1
+PySide6-Essentials>=6.6

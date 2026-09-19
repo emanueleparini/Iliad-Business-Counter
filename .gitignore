@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.pyc
+
+# configurazione personale (il template versionato e' config.example.toml)
+config.toml
+
+# dati locali: consumi, storico, posizione del widget
+data/
+
+# ricognizione del portale: log di rete e profilo browser
+recon/artifacts/
+recon/browser-profile/
+
+# build dell'installer
+build/
+dist/
+*.lnk
+
+.vscode/
+.idea/

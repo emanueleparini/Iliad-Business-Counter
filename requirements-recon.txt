@@ -1,0 +1,3 @@
+# Serve solo per recon/recon.py, la ricognizione del portale.
+# Non e' necessario per usare il widget.
+playwright>=1.40

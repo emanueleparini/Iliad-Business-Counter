@@ -1,0 +1,70 @@
+name: release
+
+# Un tag "v1.0.0" produce l'installer e lo allega alla Release.
+# Si puo' anche lanciare a mano: in quel caso l'installer resta come artifact.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Dipendenze
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Test
+        run: |
+          python -m core.test_cycle
+          python -m core.test_parse
+
+      - name: Versione
+        id: v
+        shell: pwsh
+        run: |
+          $ref = "${{ github.ref_name }}"
+          $v = if ($ref -match '^v(.+)$') { $Matches[1] } else { '0.0.0' }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "versione: $v"
+
+      - name: Eseguibile (PyInstaller)
+        run: pyinstaller --noconfirm packaging/iliad-counter.spec
+
+      - name: Installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc /DMyAppVersion=${{ steps.v.outputs.version }} packaging\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC ha fallito" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iliad-counter-setup
+          path: dist/installer/*.exe
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = "dist/installer/iliad-counter-setup-${{ steps.v.outputs.version }}.exe"
+          gh release create "${{ github.ref_name }}" $exe --generate-notes --title "${{ github.ref_name }}"
+          if ($LASTEXITCODE -ne 0) {
+            # la release esisteva gia': sostituisco il file
+            gh release upload "${{ github.ref_name }}" $exe --clobber
+          }

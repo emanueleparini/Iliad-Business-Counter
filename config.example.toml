@@ -1,0 +1,48 @@
+# Configurazione iliad-counter
+# I valori qui sono la fonte di verita' solo per cio' che il portale non espone.
+
+[general]
+# Ogni quanto interrogare il portale. Sotto i 15 minuti non ha senso:
+# i contatori iliad non si aggiornano in tempo reale.
+refresh_minutes = 60
+# Refresh piu' fitto nelle 48h prima del rinnovo, quando serve precisione.
+refresh_minutes_near_renewal = 30
+timezone = "Europe/Rome"
+
+[portal]
+base_url = "https://business.iliad.it"
+login_url = "https://business.iliad.it/account/login/"
+# Username: letto da Windows Credential Manager (servizio "iliad-counter").
+# La password non sta MAI in questo file.
+credential_service = "iliad-counter"
+
+[widget]
+# Posizione iniziale; poi il widget ricorda l'ultima.
+x = 60
+y = 60
+width = 348
+opacity = 0.96
+theme = "auto"          # auto | dark | light
+pin_to_desktop = true   # agganciata al desktop, mai in primo piano
+start_with_windows = true
+
+[alerts]
+# Notifica Windows quando si superano queste soglie di consumo del pacchetto.
+usage_pct = [80, 95]
+# ...e quando la proiezione a fine ciclo sfora il pacchetto.
+notify_on_overrun_projection = true
+
+# --- SIM (facoltativo) ---------------------------------------------------
+# Le SIM vengono lette da sole dal portale: questa sezione NON e' obbligatoria.
+# Serve solo per dare un'etichetta tua a una SIM o per deciderne l'ordine.
+# L'uuid si legge in data/latest.json dopo il primo aggiornamento.
+#
+# [[sim]]
+# id = "sim1"
+# label = "Giga 300"
+# uuid = "00000000-0000-0000-0000-000000000000"
+# enabled = true
+# # I due valori qui sotto sono solo un paracadute: valgono unicamente se il
+# # portale smettesse di esporre il periodo di riferimento e il pacchetto.
+# renewal_day = 4
+# data_allowance_gb = 0
