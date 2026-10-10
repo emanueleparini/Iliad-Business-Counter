@@ -37,6 +37,11 @@ WizardStyle=modern
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 CloseApplications=yes
+#ifdef Sign
+; build.ps1 -Sign definisce lo strumento "artifactsigning" via ISCC /S
+SignTool=artifactsigning
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "italiano"; MessagesFile: "compiler:Languages\Italian.isl"

@@ -19,3 +19,6 @@ dist/
 
 .vscode/
 .idea/
+
+# plug-in di firma Azure scaricato da build.ps1 -Sign
+.tools/

@@ -158,9 +158,14 @@ Se iliad cambia l'API, i file da toccare sono `core/snapshot.py` e
 
 ```powershell
 .venv\Scripts\python.exe -m pip install pyinstaller
-.venv\Scripts\python.exe -m PyInstaller --noconfirm packaging/iliad-counter.spec
-& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DMyAppVersion=0.1.0 packaging\installer.iss
+.uild.ps1 -Version 1.1.0          # exe + setup in dist/
+.uild.ps1 -Version 1.1.0 -Sign    # idem, firmati con Azure Artifact Signing
 ```
+
+La firma richiede il Windows SDK (signtool) e un login Azure CLI con il ruolo
+*Artifact Signing Certificate Profile Signer* sull'account indicato in
+`packaging/artifact-signing.json`:
+`az login --scope https://codesigning.azure.net/.default`.
 
 Il setup esce in `dist/installer/`. In automatico lo fa GitHub Actions: un tag
 `vX.Y.Z` fa partire `.github/workflows/release.yml`, che builda su Windows e
