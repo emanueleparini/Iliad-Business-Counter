@@ -1,26 +1,74 @@
-# iliad counter
+<p align="center">
+  <img src="docs/img/banner.svg" alt="iliad counter: i GB delle tue SIM iliad business, sempre sotto gli occhi" width="100%">
+</p>
 
-Widget desktop per Windows che mostra i contatori delle SIM **iliad business**:
-quanti GB hai consumato, a che ritmo, e se a fine ciclo ci arrivi o sfori.
+<p align="center">
+  <a href="../../releases/latest"><img alt="Ultima versione" src="https://img.shields.io/github/v/release/emanueleparini/Iliad-Business-Counter?style=flat-square&color=7AA2F7&label=versione"></a>
+  <a href="../../releases"><img alt="Download" src="https://img.shields.io/github/downloads/emanueleparini/Iliad-Business-Counter/total?style=flat-square&color=3DDC97&label=download"></a>
+  <img alt="Windows 10 e 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white">
+  <a href="../../actions/workflows/ci.yml"><img alt="Test" src="https://img.shields.io/github/actions/workflow/status/emanueleparini/Iliad-Business-Counter/ci.yml?branch=main&style=flat-square&label=test"></a>
+  <a href="LICENSE"><img alt="Licenza MIT" src="https://img.shields.io/github/license/emanueleparini/Iliad-Business-Counter?style=flat-square&color=8A4DFF&label=licenza"></a>
+</p>
+
+<p align="center">
+  Widget per Windows che mostra i contatori delle SIM <strong>iliad business</strong>:<br>
+  quanti GB hai consumato, a che ritmo, e se a fine ciclo ci arrivi o sfori.
+</p>
+
+<p align="center">
+  <a href="../../releases/latest"><strong>⬇ Scarica l'installer</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#cosa-fa">Cosa fa</a>
+  &nbsp;·&nbsp;
+  <a href="#installazione">Installazione</a>
+  &nbsp;·&nbsp;
+  <a href="#credenziali-e-privacy">Privacy</a>
+</p>
+
+<p align="center">
+  <img src="docs/img/hero.png" alt="Il pannello di iliad counter aperto dall'icona nella tray di Windows 11" width="100%">
+</p>
 
 Gira in locale, non manda niente a nessuno, non serve tenere aperto il browser.
 
----
-
 ## Cosa fa
 
-- una scheda per ogni SIM del tuo account, con anello di consumo
-- **ritmo**: media di GB al giorno finora
-- **puoi**: quanto puoi ancora spendere al giorno per arrivare al rinnovo senza sforare
-- notifiche di Windows all'80% e al 95% del pacchetto, e se la proiezione sfora
-- posizione a scelta: agganciata al desktop (come i Memo), finestra normale,
-  sempre in primo piano, oppure **solo nella tray**; tema chiaro/scuro automatico
-- icona nella tray con l'indicatore: anello colorato e percentuale della SIM
-  piu' consumata; menu con impostazioni, aggiorna, mostra/nascondi, esci
+| | |
+|---|---|
+| 📶 **Una scheda per SIM** | tutte le SIM del tuo account, lette da sole dal portale: non devi elencarle a mano |
+| ⏱️ **Ritmo** | media di GB al giorno consumati finora nel ciclo |
+| 🎯 **Puoi** | quanto puoi ancora spendere al giorno per arrivare al rinnovo senza sforare |
+| 🔔 **Notifiche** | avviso di Windows all'80% e al 95% del pacchetto, e quando la proiezione sfora |
+| 🖥️ **Dove vuoi tu** | sul desktop come i Memo, finestra normale, sempre in primo piano o **solo nella tray** |
+| 🌗 **Tema automatico** | chiaro o scuro, segue quello di Windows |
 
-Le SIM vengono lette da sole dal portale: non devi elencarle a mano.
 Anche le date del ciclo arrivano dal portale, quindi una SIM attivata a metà
 mese si allinea da sola.
+
+<p align="center">
+  <img src="docs/img/themes.png" alt="Il widget con tema scuro e con tema chiaro" width="88%">
+</p>
+
+### L'icona nella tray
+
+L'icona disegna l'anello e la percentuale della SIM più consumata, col colore
+dello stato peggiore: la guardi di sfuggita e sai già se va tutto bene. Passaci
+sopra col mouse per il dettaglio di ogni SIM; un clic apre il pannello.
+
+<p align="center">
+  <img src="docs/img/tray-states.png" alt="Gli stati dell'icona nella tray: ok, attenzione, esaurito, in attesa" width="88%">
+</p>
+
+### Come si legge l'anello
+
+<p align="center">
+  <img src="docs/img/ring.png" alt="L'arco indica il consumo, la tacca quanto ciclo è passato" width="80%">
+</p>
+
+L'arco colorato è il consumo. La **tacca** sullo stesso anello è quanto ciclo è
+passato. Arco oltre la tacca = stai consumando più in fretta di quanto scorra il
+mese.
 
 ## Installazione
 
@@ -33,9 +81,9 @@ Si installa per il solo utente corrente in `%LOCALAPPDATA%\Programs`, quindi
 non chiede diritti di amministratore. Durante l'installazione puoi spuntare
 l'icona sul desktop e l'avvio automatico con Windows.
 
-> Al primo download Windows mostra l'avviso SmartScreen, perché l'eseguibile
-> non è firmato con un certificato a pagamento: *Ulteriori informazioni* →
-> *Esegui comunque*.
+> 🔏 Il setup è **firmato digitalmente**: Windows mostra l'editore verificato.
+> Se con una versione appena uscita SmartScreen avvisa comunque, *Ulteriori
+> informazioni* → *Esegui comunque*.
 
 ### Dai sorgenti
 
@@ -58,6 +106,8 @@ L'ultima riga crea l'icona **iliad counter** sul desktop. Doppio click e parte.
 Si apre il pannello impostazioni: metti ID utente e password del portale e premi
 **Verifica e salva**. Il salvataggio avviene solo se l'accesso funziona davvero.
 
+<img src="docs/img/settings.png" alt="Il pannello impostazioni" width="300" align="right">
+
 Dallo stesso pannello (icona nella tray → *Impostazioni*, oppure il bottone ⋯):
 
 - **Avvia con Windows**
@@ -74,6 +124,8 @@ Dallo stesso pannello (icona nella tray → *Impostazioni*, oppure il bottone �
 > delle applicazioni → Altre icone nell'area di notifica* e attiva
 > *iliad counter*. Scegliendo la posizione *nella tray* il widget prova a
 > metterla in vista da solo.
+
+<br clear="right">
 
 ## Credenziali e privacy
 
@@ -102,12 +154,6 @@ Il file nasce da solo al primo avvio, copiato da `config.example.toml`:
 .venv\Scripts\python.exe -m collector.run            # un controllo al volo
 .venv\Scripts\python.exe -m collector.run --watch --json
 ```
-
-## Come si legge l'anello
-
-L'arco colorato è il consumo. La **tacca** sullo stesso anello è quanto ciclo è
-passato. Arco oltre la tacca = stai consumando più in fretta di quanto scorra il
-mese.
 
 ---
 
@@ -158,8 +204,8 @@ Se iliad cambia l'API, i file da toccare sono `core/snapshot.py` e
 
 ```powershell
 .venv\Scripts\python.exe -m pip install pyinstaller
-.uild.ps1 -Version 1.1.0          # exe + setup in dist/
-.uild.ps1 -Version 1.1.0 -Sign    # idem, firmati con Azure Artifact Signing
+.\build.ps1 -Version 1.1.0          # exe + setup in dist/
+.\build.ps1 -Version 1.1.0 -Sign    # idem, firmati con Azure Artifact Signing
 ```
 
 La firma richiede il Windows SDK (signtool) e un login Azure CLI con il ruolo
@@ -175,6 +221,15 @@ allega l'installer alla Release.
 git tag v1.0.0
 git push --tags
 ```
+
+### Immagini del README
+
+```powershell
+.venv\Scripts\python.exe -m widget._readme_shots
+```
+
+Le renderizza dal codice vero del widget, con dati inventati, in `docs/img/`.
+Da rilanciare quando cambia la grafica.
 
 ### Ricognizione del portale
 

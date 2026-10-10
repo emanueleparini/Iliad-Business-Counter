@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="iliad counter: i GB delle tue SIM iliad business, sempre sotto gli occhi">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1A3A"/>
+      <stop offset="1" stop-color="#1B0F33"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.18" cy="0.3" r="0.45">
+      <stop offset="0" stop-color="#2F6BFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#2F6BFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.85" cy="0.1" r="0.4">
+      <stop offset="0" stop-color="#8A4DFF" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#8A4DFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowC" cx="0.6" cy="1" r="0.45">
+      <stop offset="0" stop-color="#00B3A4" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#00B3A4" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="card"><rect width="1280" height="320" rx="24"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <rect width="1280" height="320" fill="url(#bg)"/>
+    <rect width="1280" height="320" fill="url(#glowA)"/>
+    <rect width="1280" height="320" fill="url(#glowB)"/>
+    <rect width="1280" height="320" fill="url(#glowC)"/>
+  </g>
+
+  <!-- tre anelli concentrici: verde, giallo, rosso, come gli stati delle SIM.
+       circonferenze: r=96 → 603, r=72 → 452, r=48 → 302 -->
+  <g transform="translate(200 160) rotate(-90)" fill="none" stroke-linecap="round">
+    <circle r="96" stroke="#2A2F3A" stroke-width="14"/>
+    <circle r="96" stroke="#3DDC97" stroke-width="14" stroke-dasharray="247 603"/>
+    <circle r="72" stroke="#2A2F3A" stroke-width="14"/>
+    <circle r="72" stroke="#F5B841" stroke-width="14" stroke-dasharray="294 452"/>
+    <circle r="48" stroke="#2A2F3A" stroke-width="14"/>
+    <circle r="48" stroke="#FF6B6B" stroke-width="14" stroke-dasharray="263 302"/>
+  </g>
+  <!-- la tacca del ritmo, sull'anello esterno -->
+  <line x1="200" y1="248" x2="200" y2="272" stroke="#E9EBEF" stroke-width="5" stroke-linecap="round" transform="rotate(10 200 160)"/>
+
+  <g font-family="'Segoe UI Variable Display','Segoe UI',Inter,'Helvetica Neue',Arial,sans-serif">
+    <text x="370" y="142" fill="#FFFFFF" font-size="72" font-weight="700" letter-spacing="-1">
+      <tspan fill="#7AA2F7">iliad</tspan> counter
+    </text>
+    <text x="372" y="192" fill="#C9D1E0" font-size="26">
+      I GB delle tue SIM iliad business, sempre sotto gli occhi.
+    </text>
+
+    <g font-size="17" font-weight="600">
+      <rect x="372" y="222" width="172" height="36" rx="18" fill="#FFFFFF" fill-opacity="0.08" stroke="#FFFFFF" stroke-opacity="0.18"/>
+      <text x="458" y="246" fill="#E9EBEF" text-anchor="middle">Windows 10 / 11</text>
+      <rect x="556" y="222" width="160" height="36" rx="18" fill="#FFFFFF" fill-opacity="0.08" stroke="#FFFFFF" stroke-opacity="0.18"/>
+      <text x="636" y="246" fill="#E9EBEF" text-anchor="middle">tutto in locale</text>
+      <rect x="728" y="222" width="214" height="36" rx="18" fill="#FFFFFF" fill-opacity="0.08" stroke="#FFFFFF" stroke-opacity="0.18"/>
+      <text x="835" y="246" fill="#E9EBEF" text-anchor="middle">notifiche e proiezioni</text>
+      <rect x="954" y="222" width="136" height="36" rx="18" fill="#3DDC97" fill-opacity="0.16" stroke="#3DDC97" stroke-opacity="0.5"/>
+      <text x="1022" y="246" fill="#3DDC97" text-anchor="middle">open source</text>
+    </g>
+  </g>
+</svg>
