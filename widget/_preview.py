@@ -24,7 +24,7 @@ OUT = Path(__file__).resolve().parent.parent / "recon/artifacts"
 
 def shot(cfg, mode: str, snap: dict, name: str) -> Path:
     cfg.widget["theme"] = mode
-    cfg.widget["pin_to_desktop"] = False
+    cfg.widget["window_layer"] = "normal"
     win = IliadWidget(cfg)
     win.timer.stop()
     win.apply_snapshot(snap, from_cache=True)

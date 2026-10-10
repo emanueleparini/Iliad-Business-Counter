@@ -23,7 +23,13 @@ y = 60
 width = 348
 opacity = 0.96
 theme = "auto"          # auto | dark | light
-pin_to_desktop = true   # agganciata al desktop, mai in primo piano
+# Dove sta la finestra rispetto alle altre:
+#   desktop = agganciata al desktop, sotto tutto (non copre mai il lavoro)
+#   normal  = finestra come le altre
+#   top     = sempre in primo piano
+#   tray    = solo l'icona nella tray con la % consumata; un clic apre il pannello
+window_layer = "desktop"
+pin_to_desktop = true   # vecchia chiave: vale solo se window_layer manca
 start_with_windows = true
 
 [alerts]

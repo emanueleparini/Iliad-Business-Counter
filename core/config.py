@@ -98,10 +98,18 @@ def load(path: Path | None = None) -> Config:
     )
 
 
-def set_refresh_minutes(minutes: int, path: Path | None = None) -> bool:
+def _toml_literal(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    return '"' + str(value).replace('"', '\\"') + '"'
+
+
+def _set_key(section: str, key: str, value, path: Path | None = None) -> bool:
     """
-    Aggiorna una sola chiave lasciando intatti commenti e formattazione:
-    config.toml e' un file che l'utente legge e modifica a mano.
+    Aggiorna (o aggiunge) una sola chiave lasciando intatti commenti e
+    formattazione: config.toml e' un file che l'utente legge e modifica a mano.
     """
     p = ensure_config(path)
     try:
@@ -109,23 +117,46 @@ def set_refresh_minutes(minutes: int, path: Path | None = None) -> bool:
     except OSError:
         return False
 
-    in_general = False
+    header = f"[{section}]"
+    in_section = False
+    found = -1
+    tail = -1           # ultima riga piena della sezione: li' va l'inserimento
+
     for i, line in enumerate(lines):
         stripped = line.strip()
         if stripped.startswith("["):
-            in_general = stripped == "[general]"
+            if in_section:
+                break   # sezione finita e la chiave non c'era
+            in_section = stripped == header
+            if in_section:
+                tail = i
             continue
-        if not in_general or not stripped.startswith("refresh_minutes"):
+        if not in_section:
             continue
-        if stripped.startswith("refresh_minutes_near"):
-            continue
-        lines[i] = f"refresh_minutes = {int(minutes)}"
-        break
+        if stripped:
+            tail = i
+        if "=" in stripped and stripped.split("=", 1)[0].strip() == key:
+            found = i
+            break
+
+    row = f"{key} = {_toml_literal(value)}"
+    if found >= 0:
+        lines[found] = row
+    elif tail >= 0:
+        lines.insert(tail + 1, row)
     else:
-        return False
+        lines += ["", header, row]
 
     try:
         p.write_text(chr(10).join(lines) + chr(10), encoding="utf-8")
         return True
     except OSError:
         return False
+
+
+def set_refresh_minutes(minutes: int, path: Path | None = None) -> bool:
+    return _set_key("general", "refresh_minutes", int(minutes), path)
+
+
+def set_widget_key(key: str, value, path: Path | None = None) -> bool:
+    return _set_key("widget", key, value, path)

@@ -13,8 +13,10 @@ Gira in locale, non manda niente a nessuno, non serve tenere aperto il browser.
 - **ritmo**: media di GB al giorno finora
 - **puoi**: quanto puoi ancora spendere al giorno per arrivare al rinnovo senza sforare
 - notifiche di Windows all'80% e al 95% del pacchetto, e se la proiezione sfora
-- finestra agganciata al desktop (mai in primo piano, come i Memo), tema chiaro/scuro automatico
-- icona nella tray: impostazioni, aggiorna, mostra/nascondi, esci
+- posizione a scelta: agganciata al desktop (come i Memo), finestra normale,
+  sempre in primo piano, oppure **solo nella tray**; tema chiaro/scuro automatico
+- icona nella tray con l'indicatore: anello colorato e percentuale della SIM
+  piu' consumata; menu con impostazioni, aggiorna, mostra/nascondi, esci
 
 Le SIM vengono lette da sole dal portale: non devi elencarle a mano.
 Anche le date del ciclo arrivano dal portale, quindi una SIM attivata a metà
@@ -60,7 +62,18 @@ Dallo stesso pannello (icona nella tray → *Impostazioni*, oppure il bottone �
 
 - **Avvia con Windows**
 - **Crea icona sul desktop**
+- **Posizione** della finestra: *sul desktop* (sotto tutto, non copre mai il
+  lavoro), *finestra normale*, *sempre in primo piano*, *nella tray* (resta
+  solo l'icona: un clic apre il pannello in primo piano sopra la barra, un
+  altro clic, Esc, ✕ o un clic altrove lo richiude). Si cambia al volo anche
+  dalla tray → *Posizione*, e resta scritta in `config.toml` (`window_layer`).
 - **Aggiorna ogni N minuti**
+
+> L'icona nella tray su Windows 11 nasce **nascosta sotto la freccetta**: per
+> averla sempre in vista, *Impostazioni di Windows → Personalizzazione → Barra
+> delle applicazioni → Altre icone nell'area di notifica* e attiva
+> *iliad counter*. Scegliendo la posizione *nella tray* il widget prova a
+> metterla in vista da solo.
 
 ## Credenziali e privacy
 

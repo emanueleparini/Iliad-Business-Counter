@@ -9,6 +9,7 @@ from __future__ import annotations
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -55,6 +56,7 @@ class LoginTest(QRunnable):
 class SettingsDialog(QDialog):
     credentials_saved = Signal()
     refresh_changed = Signal(int)
+    layer_changed = Signal(str)
 
     def __init__(self, cfg, palette: Palette) -> None:
         # senza parent: il widget principale non puo' ricevere il fuoco,
@@ -111,6 +113,29 @@ class SettingsDialog(QDialog):
 
         root.addWidget(self._divider())
 
+        # -- finestra -----------------------------------------------------
+        root.addWidget(self._section("Finestra"))
+
+        from widget.app import LAYERS, LAYER_LABELS, read_layer
+
+        pos = QHBoxLayout()
+        pos.addWidget(QLabel("Posizione", self))
+        self.combo_layer = QComboBox(self)
+        for key in LAYERS:
+            self.combo_layer.addItem(LAYER_LABELS[key], key)
+        self.combo_layer.setCurrentIndex(LAYERS.index(read_layer(cfg.widget)))
+        self.combo_layer.currentIndexChanged.connect(self._change_layer)
+        pos.addWidget(self.combo_layer, 1)
+        root.addLayout(pos)
+
+        self.hint_layer = QLabel("", self)
+        self.hint_layer.setObjectName("hint")
+        self.hint_layer.setWordWrap(True)
+        root.addWidget(self.hint_layer)
+        self._describe_layer()
+
+        root.addWidget(self._divider())
+
         # -- frequenza ----------------------------------------------------
         root.addWidget(self._section("Aggiornamento"))
 
@@ -153,12 +178,20 @@ class SettingsDialog(QDialog):
             QLabel {{ color: {p.text}; font-size: 12px; }}
             #section {{ color: {p.accent}; font-size: 11px; font-weight: 700; }}
             #status {{ color: {p.muted}; font-size: 11px; }}
+            #hint {{ color: {p.faint}; font-size: 10.5px; }}
             #divider {{ color: {p.divider}; }}
-            QLineEdit, QSpinBox {{
+            QLineEdit, QSpinBox, QComboBox {{
                 background: {p.card}; color: {p.text}; border: 1px solid {p.divider};
                 border-radius: 6px; padding: 7px 9px; font-size: 12px;
             }}
-            QLineEdit:focus, QSpinBox:focus {{ border: 1px solid {p.accent}; }}
+            QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{
+                border: 1px solid {p.accent};
+            }}
+            QComboBox QAbstractItemView {{
+                background: {p.card}; color: {p.text};
+                selection-background-color: {p.card_hover};
+                border: 1px solid {p.divider};
+            }}
             QCheckBox {{ color: {p.text}; font-size: 12px; }}
             QPushButton {{
                 background: {p.card}; color: {p.text}; border: 1px solid {p.divider};
@@ -234,6 +267,28 @@ class SettingsDialog(QDialog):
         lnk = autostart.create_desktop_shortcut()
         self._say(f"Icona creata: {lnk.name}" if lnk
                   else "Creazione icona fallita.", ok=bool(lnk))
+
+    _LAYER_HINTS = {
+        "desktop": "Resta incollata al desktop: non copre mai quello su cui "
+                   "stai lavorando, ma sparisce dietro le altre finestre.",
+        "normal": "Si comporta come una finestra qualsiasi: resta dove la "
+                  "lasci nell'ordine delle finestre.",
+        "top": "Sempre visibile sopra le altre finestre, anche a schermo "
+               "intero.",
+        "tray": "Resta solo l'icona accanto all'orologio, con la percentuale "
+                "consumata: un clic apre il pannello in primo piano, un altro "
+                "clic (o Esc, o un clic altrove) lo richiude.",
+    }
+
+    def _describe_layer(self) -> None:
+        self.hint_layer.setText(
+            self._LAYER_HINTS.get(self.combo_layer.currentData(), "")
+        )
+
+    def _change_layer(self) -> None:
+        layer = self.combo_layer.currentData()
+        self._describe_layer()
+        self.layer_changed.emit(layer)
 
     def _change_refresh(self, minutes: int) -> None:
         if cfgmod.set_refresh_minutes(minutes):

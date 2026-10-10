@@ -3,9 +3,11 @@ Widget desktop dei contatori iliad.
 
     .venv\\Scripts\\pythonw.exe -m widget.app
 
-Finestra senza bordi, agganciata al desktop (mai in primo piano), con icona
-nella tray. Aggiorna da sola all'intervallo di config.toml; click su una
-scheda = aggiornamento immediato.
+Finestra senza bordi con icona nella tray. Il livello si sceglie: sul
+desktop (sotto tutto), normale, sempre in primo piano, oppure solo nella tray
+(l'icona mostra il consumo, un clic apre il pannello sopra la barra). Aggiorna
+da sola all'intervallo di config.toml; click su una scheda = aggiornamento
+immediato.
 """
 
 from __future__ import annotations
@@ -13,11 +15,32 @@ from __future__ import annotations
 import ctypes
 import json
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QPoint, QRunnable, Qt, QThreadPool, QTimer, Signal
-from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtCore import (
+    QEvent,
+    QObject,
+    QPoint,
+    QRectF,
+    QRunnable,
+    Qt,
+    QThreadPool,
+    QTimer,
+    Signal,
+)
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QColor,
+    QCursor,
+    QFont,
+    QIcon,
+    QPainter,
+    QPen,
+    QPixmap,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -37,31 +60,83 @@ from widget.cards import RoundedPanel, SimCard
 from widget.settings import SettingsDialog
 
 STATE_FILE = cfgmod.DATA_DIR / "widget_state.json"
+# l'icona ha fondo scuro fisso, quindi anche la traccia resta quella scura
+DARK_TRACK = theme.DARK.track
 
 # --- Win32 -----------------------------------------------------------------
-HWND_BOTTOM = 1
+HWND_TOPMOST, HWND_NOTOPMOST, HWND_BOTTOM = -1, -2, 1
 SWP_NOSIZE, SWP_NOMOVE, SWP_NOACTIVATE = 0x0001, 0x0002, 0x0010
 GWL_EXSTYLE = -20
 WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW = 0x08000000, 0x00000080
 
+# Quattro modi di stare sullo schermo. "desktop" e' il comportamento storico;
+# "tray" vive nell'icona e si apre a comando come un pannello di sistema.
+LAYERS = ("desktop", "normal", "top", "tray")
+LAYER_LABELS = {
+    "desktop": "Sul desktop (sotto tutto)",
+    "normal": "Finestra normale",
+    "top": "Sempre in primo piano",
+    "tray": "Nella tray (si apre col clic)",
+}
+_INSERT_AFTER = {"desktop": HWND_BOTTOM, "normal": HWND_NOTOPMOST,
+                 "top": HWND_TOPMOST, "tray": HWND_TOPMOST}
 
-def sink_to_desktop(win: QWidget, no_activate: bool = True) -> None:
+
+def read_layer(widget_cfg: dict) -> str:
+    """Legge window_layer; sui config vecchi ricade su pin_to_desktop."""
+    layer = str(widget_cfg.get("window_layer", "")).strip().lower()
+    if layer in LAYERS:
+        return layer
+    return "desktop" if widget_cfg.get("pin_to_desktop", True) else "normal"
+
+
+def layer_flags(layer: str) -> Qt.WindowFlags:
+    flags = Qt.FramelessWindowHint | Qt.Tool
+    if layer == "desktop":
+        return flags | Qt.WindowStaysOnBottomHint
+    if layer in ("top", "tray"):
+        return flags | Qt.WindowStaysOnTopHint
+    return flags
+
+
+def _user32():
+    """Le funzioni Win32 con le firme giuste: su 64 bit i default troncano."""
+    user32 = ctypes.windll.user32
+    get_long = getattr(user32, "GetWindowLongPtrW", user32.GetWindowLongW)
+    set_long = getattr(user32, "SetWindowLongPtrW", user32.SetWindowLongW)
+    get_long.restype = ctypes.c_ssize_t
+    get_long.argtypes = [ctypes.c_ssize_t, ctypes.c_int]
+    set_long.restype = ctypes.c_ssize_t
+    set_long.argtypes = [ctypes.c_ssize_t, ctypes.c_int, ctypes.c_ssize_t]
+    user32.SetWindowPos.argtypes = [ctypes.c_ssize_t, ctypes.c_ssize_t,
+                                    ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                    ctypes.c_int, ctypes.c_uint]
+    return user32, get_long, set_long
+
+
+def apply_layer(win: QWidget, layer: str) -> None:
     """
-    Manda la finestra in fondo allo Z-order e le toglie il diritto di attivarsi:
-    resta sul desktop come i Memo, senza mai coprire cio' su cui stai lavorando.
+    Mette la finestra al livello scelto.
+
+    Sul desktop le si toglie anche il diritto di attivarsi, cosi' resta come i
+    Memo senza mai coprire cio' su cui stai lavorando; negli altri due livelli
+    quel diritto le serve, altrimenti non potrebbe nemmeno prendere un clic.
     """
     if sys.platform != "win32":
         return
     try:
         hwnd = int(win.winId())
-        user32 = ctypes.windll.user32
-        if no_activate:
-            get_long = getattr(user32, "GetWindowLongPtrW", user32.GetWindowLongW)
-            set_long = getattr(user32, "SetWindowLongPtrW", user32.SetWindowLongW)
-            style = get_long(hwnd, GWL_EXSTYLE)
-            set_long(hwnd, GWL_EXSTYLE,
-                     style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW)
-        user32.SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0,
+        user32, get_long, set_long = _user32()
+
+        style = get_long(hwnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW
+        if layer == "desktop":
+            style |= WS_EX_NOACTIVATE
+        else:
+            style &= ~WS_EX_NOACTIVATE
+        set_long(hwnd, GWL_EXSTYLE, style)
+
+        user32.SetWindowPos(hwnd, _INSERT_AFTER.get(layer, HWND_NOTOPMOST),
+                            0, 0, 0, 0,
                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE)
     except (OSError, AttributeError, ValueError):
         pass  # su una versione di Windows ostile il widget resta comunque usabile
@@ -98,8 +173,12 @@ class FetchTask(QRunnable):
 
 # --- icona -----------------------------------------------------------------
 
+ICON_FILE = cfgmod.BUNDLE / "assets" / "iliad.ico"
+APP_ID = "iliad.counter.widget"
+
 
 def make_icon(color: str, size: int = 64) -> QIcon:
+    """Pallino colorato per la tray: il colore dice lo stato peggiore."""
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
     qp = QPainter(pm)
@@ -117,6 +196,111 @@ def make_icon(color: str, size: int = 64) -> QIcon:
     return QIcon(pm)
 
 
+def make_gauge_icon(pct: float | None, color: str, track: str) -> QIcon:
+    """
+    Icona della tray con l'indicatore: anello di consumo nel colore dello
+    stato e la percentuale al centro. Ogni taglia e' disegnata a parte, perche'
+    a 16 px un'immagine rimpicciolita non si legge.
+    """
+    if pct is None:
+        return make_icon(color)
+    icon = QIcon()
+    value = max(0.0, pct)
+    text = "!" if value >= 1.0 else f"{value * 100:.0f}"
+    for size in (16, 20, 24, 32, 40, 48, 64):
+        pm = QPixmap(size, size)
+        pm.fill(Qt.transparent)
+        qp = QPainter(pm)
+        qp.setRenderHint(QPainter.Antialiasing)
+        qp.setRenderHint(QPainter.TextAntialiasing)
+
+        thick = max(1.6, size * 0.11)
+        rect = QRectF(thick / 2, thick / 2, size - thick, size - thick)
+        qp.setPen(Qt.NoPen)
+        qp.setBrush(QColor("#14161B"))
+        qp.drawEllipse(QRectF(0, 0, size, size))
+        qp.setBrush(Qt.NoBrush)
+        qp.setPen(QPen(QColor(track), thick, Qt.SolidLine, Qt.FlatCap))
+        qp.drawArc(rect, 0, 360 * 16)
+        span = min(1.0, value)
+        if span > 0.004:
+            qp.setPen(QPen(QColor(color), thick, Qt.SolidLine, Qt.FlatCap))
+            qp.drawArc(rect, 90 * 16, -int(span * 360 * 16))
+
+        f = QFont()
+        f.setPixelSize(max(8, round(size * (0.66 if len(text) == 1 else 0.56))))
+        f.setWeight(QFont.Bold)
+        if size < 24:
+            f.setLetterSpacing(QFont.AbsoluteSpacing, -0.5)
+        qp.setFont(f)
+        qp.setPen(QColor("#FFFFFF"))
+        qp.drawText(QRectF(0, 0, size, size), Qt.AlignCenter, text)
+        qp.end()
+        icon.addPixmap(pm)
+    return icon
+
+
+def promote_tray_icon() -> None:
+    """
+    Windows 11 nasconde le icone nuove sotto la freccetta. Chi sceglie la
+    modalita' tray la vuole in vista: si segna come promossa la voce che
+    Explorer ha gia' creato per questo eseguibile. Solo su scelta esplicita,
+    mai a ogni avvio: se poi la si nasconde a mano, resta nascosta.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import winreg
+
+        exe = str(Path(sys.executable).resolve()).lower()
+        root = r"Control Panel\NotifyIconSettings"
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, root) as base:
+            i = 0
+            while True:
+                try:
+                    name = winreg.EnumKey(base, i)
+                except OSError:
+                    break
+                i += 1
+                access = winreg.KEY_READ | winreg.KEY_SET_VALUE
+                with winreg.OpenKey(base, name, 0, access) as key:
+                    try:
+                        path, _ = winreg.QueryValueEx(key, "ExecutablePath")
+                    except OSError:
+                        continue
+                    # Explorer a volte scrive la cartella come GUID:
+                    # {F1B32785-...}\iliad counter\iliad-counter.exe
+                    path = str(path).lower()
+                    if path == exe or (path.startswith("{") and "}" in path
+                                       and exe.endswith(path.split("}", 1)[1])):
+                        winreg.SetValueEx(key, "IsPromoted", 0,
+                                          winreg.REG_DWORD, 1)
+    except OSError:
+        pass  # Windows 10 o registro diverso: l'icona resta dove Windows vuole
+
+
+def app_icon(fallback: str = "#7AA2F7") -> QIcon:
+    """L'icona dell'applicazione: assets/iliad.ico, disegnata se manca."""
+    if ICON_FILE.exists():
+        icon = QIcon(str(ICON_FILE))
+        if not icon.isNull():
+            return icon
+    return make_icon(fallback)
+
+
+def register_app_id() -> None:
+    """
+    Senza AppUserModelID Windows attribuisce finestre, notifiche e collegamento
+    al processo python.exe, e l'icona che si vede e' la sua.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
+    except (OSError, AttributeError):
+        pass
+
+
 # --- finestra --------------------------------------------------------------
 
 
@@ -131,11 +315,13 @@ class IliadWidget(QWidget):
         self._notified: set[str] = set()
         self._settings: SettingsDialog | None = None
         self._busy = False
+        self.layer = read_layer(cfg.widget)
+        self._layer_actions: dict[str, QAction] = {}
+        self._popup_closed_at = 0.0
 
-        self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnBottomHint
-        )
+        self.setWindowFlags(layer_flags(self.layer))
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowIcon(app_icon(self.p.accent))
         self.setWindowTitle("iliad counter")
 
         self._build_ui()
@@ -189,11 +375,19 @@ class IliadWidget(QWidget):
         self.btn_menu.setObjectName("iconBtn")
         self.btn_menu.setFixedSize(22, 22)
         self.btn_menu.clicked.connect(self._show_menu)
+        # solo in modalita' tray: il pannello si chiude come si e' aperto
+        self.btn_close = QPushButton("✕", self.panel)
+        self.btn_close.setObjectName("iconBtn")
+        self.btn_close.setFixedSize(22, 22)
+        self.btn_close.setToolTip("Chiudi (resta nella tray)")
+        self.btn_close.clicked.connect(self._hide_popup)
+        self.btn_close.setVisible(self.layer == "tray")
 
         head.addWidget(self.brand)
         head.addWidget(self.company, 1)
         head.addWidget(self.btn_refresh)
         head.addWidget(self.btn_menu)
+        head.addWidget(self.btn_close)
         root.addLayout(head)
 
         self.cards_box = QVBoxLayout()
@@ -237,6 +431,20 @@ class IliadWidget(QWidget):
             act = QAction(label, self)
             act.triggered.connect(slot)
             menu.addAction(act)
+
+        # il livello si cambia da qui senza aprire le impostazioni
+        pos_menu = menu.addMenu("Posizione")
+        group = QActionGroup(self)
+        group.setExclusive(True)
+        for key in LAYERS:
+            act = QAction(LAYER_LABELS[key], self)
+            act.setCheckable(True)
+            act.setChecked(key == self.layer)
+            act.triggered.connect(lambda _checked, k=key: self.set_layer(k))
+            group.addAction(act)
+            pos_menu.addAction(act)
+            self._layer_actions[key] = act
+
         menu.addSeparator()
         quit_act = QAction("Esci", self)
         quit_act.triggered.connect(QApplication.quit)
@@ -247,6 +455,8 @@ class IliadWidget(QWidget):
             if reason == QSystemTrayIcon.Trigger else None
         )
         self.tray.show()
+        if self.layer == "tray":
+            self.tray.setToolTip("iliad counter · clic per aprire")
 
     def _show_menu(self) -> None:
         self.btn_menu.setMenu(None)
@@ -257,11 +467,12 @@ class IliadWidget(QWidget):
     def open_settings(self) -> None:
         if self._settings is None:
             dlg = SettingsDialog(self.cfg, self.p)
-            dlg.setWindowIcon(make_icon(self.p.accent))
+            dlg.setWindowIcon(app_icon(self.p.accent))
             dlg.credentials_saved.connect(self.refresh)
             dlg.refresh_changed.connect(
                 lambda m: self.timer.setInterval(max(5, m) * 60_000)
             )
+            dlg.layer_changed.connect(self.set_layer)
             self._settings = dlg
         self._settings.show()
         self._settings.raise_()
@@ -312,7 +523,8 @@ class IliadWidget(QWidget):
         when = snap.get("generated_at", "")
         stamp = when[11:16] if len(when) > 15 else "—"
         worst = self._worst_status(snap)
-        self.tray.setIcon(make_icon(self.p.status(worst)))
+        self.tray.setIcon(make_gauge_icon(self._top_pct(snap),
+                                          self.p.status(worst), DARK_TRACK))
         self.tray.setToolTip(self._tray_text(snap))
         self.footer.setText(
             f"{'dato salvato' if from_cache else 'aggiornato'} alle {stamp}"
@@ -320,8 +532,11 @@ class IliadWidget(QWidget):
 
         self.adjustSize()
         self.panel.adjustSize()
-        if self.cfg.widget.get("pin_to_desktop", True):
-            sink_to_desktop(self)
+        if self.layer == "tray":
+            if self.isVisible():
+                self._place_popup()   # e' cresciuto: non deve finire sotto la barra
+        else:
+            self._reassert_layer()
         if not from_cache:
             self._maybe_notify(snap)
 
@@ -333,6 +548,13 @@ class IliadWidget(QWidget):
             if st in found:
                 return st
         return "unknown"
+
+    @staticmethod
+    def _top_pct(snap: dict) -> float | None:
+        """La SIM piu' consumata decide il numero sull'icona."""
+        found = [(s.get("data") or {}).get("pct") for s in snap.get("sims", [])]
+        found = [p for p in found if p is not None]
+        return max(found) if found else None
 
     @staticmethod
     def _tray_text(snap: dict) -> str:
@@ -384,18 +606,136 @@ class IliadWidget(QWidget):
 
     # -- finestra ---------------------------------------------------------
 
+    def set_layer(self, layer: str, persist: bool = True) -> None:
+        """
+        Cambia livello a caldo. Qt ricrea la finestra quando cambiano i flag,
+        quindi posizione e visibilita' vanno rimesse a mano e lo stile Win32
+        riapplicato al nuovo handle.
+        """
+        if layer not in LAYERS or layer == self.layer:
+            return
+        leaving_tray = self.layer == "tray"
+        self.layer = layer
+        was_visible = self.isVisible()
+        pos = self.pos()
+
+        self.setWindowFlags(layer_flags(layer))
+        self.btn_close.setVisible(layer == "tray")
+        if layer == "tray":
+            # da qui in poi vive nell'icona: niente pannello finche' non lo chiedi
+            self.hide()
+            promote_tray_icon()
+        elif leaving_tray:
+            # torna dove l'avevi lasciato prima di passare alla tray
+            self._restore_geometry()
+            self.show()
+        else:
+            self.move(pos)
+            if was_visible:
+                self.show()
+
+        act = self._layer_actions.get(layer)
+        if act is not None and not act.isChecked():
+            act.setChecked(True)
+
+        self.cfg.widget["window_layer"] = layer
+        self.cfg.widget["pin_to_desktop"] = layer == "desktop"
+        if persist:
+            cfgmod.set_widget_key("window_layer", layer)
+            # allineata anche la chiave vecchia: un config che si contraddice
+            # e' peggio di un config con una chiave in piu'
+            cfgmod.set_widget_key("pin_to_desktop", layer == "desktop")
+
+        QTimer.singleShot(0, lambda: apply_layer(self, self.layer))
+
+    def _reassert_layer(self) -> None:
+        """
+        Dopo un aggiornamento o un trascinamento il livello va riaffermato, ma
+        solo dove serve: su "normal" un SetWindowPos la tirerebbe davanti alle
+        altre finestre a ogni giro.
+        """
+        if self.layer != "normal":
+            apply_layer(self, self.layer)
+
     def _toggle_visible(self) -> None:
-        if self.isVisible():
+        if self.layer == "tray":
+            self._toggle_popup()
+        elif self.isVisible():
             self.hide()
         else:
             self.show()
-            if self.cfg.widget.get("pin_to_desktop", True):
-                sink_to_desktop(self)
+            apply_layer(self, self.layer)
+
+    # -- pannello della tray ------------------------------------------------
+
+    def _toggle_popup(self) -> None:
+        if self.isVisible():
+            self._hide_popup()
+        # il clic sull'icona ha appena tolto il fuoco al pannello e l'ha
+        # chiuso: senza questa pausa lo riaprirebbe subito
+        elif time.monotonic() - self._popup_closed_at > 0.35:
+            self._show_popup()
+
+    def _show_popup(self) -> None:
+        self._place_popup()
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        apply_layer(self, self.layer)
+
+    def _hide_popup(self) -> None:
+        if self.isVisible():
+            self._popup_closed_at = time.monotonic()
+            self.hide()
+
+    def _place_popup(self) -> None:
+        """Sopra la barra delle applicazioni, vicino all'icona, come i flyout."""
+        self.adjustSize()
+        geo = self.tray.geometry()
+        anchor = geo.center() if geo.isValid() and not geo.isEmpty() else QCursor.pos()
+        screen = QApplication.screenAt(anchor) or QApplication.primaryScreen()
+        full, avail = screen.geometry(), screen.availableGeometry()
+        w, h, m = self.width(), self.height(), 12
+
+        x = anchor.x() - w // 2
+        y = avail.bottom() - h - m
+        if avail.top() > full.top():            # barra in alto
+            y = avail.top() + m
+        if avail.left() > full.left():          # barra a sinistra
+            x, y = avail.left() + m, anchor.y() - h // 2
+        elif avail.right() < full.right():      # barra a destra
+            x, y = avail.right() - w - m, anchor.y() - h // 2
+
+        x = max(avail.left() + m, min(x, avail.right() - w - m))
+        y = max(avail.top() + m, min(y, avail.bottom() - h - m))
+        self.move(x, y)
+
+    def _maybe_autoclose(self) -> None:
+        """Clic altrove = pannello chiuso, ma non mentre e' aperto il suo menu."""
+        if (self.layer == "tray" and self.isVisible()
+                and not self.isActiveWindow()
+                and QApplication.activePopupWidget() is None):
+            self._hide_popup()
+
+    def changeEvent(self, event) -> None:  # noqa: N802
+        super().changeEvent(event)
+        if event.type() == QEvent.ActivationChange and not self.isActiveWindow():
+            QTimer.singleShot(120, self._maybe_autoclose)
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if self.layer == "tray" and event.key() == Qt.Key_Escape:
+            self._hide_popup()
+        else:
+            super().keyPressEvent(event)
 
     def _recenter(self) -> None:
+        if self.layer == "tray":
+            self._show_popup()
+            return
         screen = QApplication.primaryScreen().availableGeometry()
         self.move(screen.right() - self.width() - 40, screen.top() + 40)
         self.show()
+        apply_layer(self, self.layer)
         self._save_geometry()
 
     def _restore_geometry(self) -> None:
@@ -426,7 +766,8 @@ class IliadWidget(QWidget):
             pass
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
-        if event.button() == Qt.LeftButton:
+        # il pannello della tray ha il suo posto fisso: non si trascina
+        if event.button() == Qt.LeftButton and self.layer != "tray":
             self._drag = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
 
     def mouseMoveEvent(self, event) -> None:  # noqa: N802
@@ -437,8 +778,7 @@ class IliadWidget(QWidget):
         if self._drag is not None:
             self._drag = None
             self._save_geometry()
-            if self.cfg.widget.get("pin_to_desktop", True):
-                sink_to_desktop(self)
+            self._reassert_layer()
 
     def contextMenuEvent(self, event) -> None:  # noqa: N802
         self.tray.contextMenu().exec(event.globalPos())
@@ -446,13 +786,16 @@ class IliadWidget(QWidget):
 
 def main() -> int:
     cfg = cfgmod.load()
+    register_app_id()
     app = QApplication(sys.argv)
+    app.setApplicationName("iliad counter")
+    app.setWindowIcon(app_icon())
     app.setQuitOnLastWindowClosed(False)   # vive nella tray anche da nascosta
 
     win = IliadWidget(cfg)
-    win.show()
-    if cfg.widget.get("pin_to_desktop", True):
-        QTimer.singleShot(200, lambda: sink_to_desktop(win))
+    if win.layer != "tray":         # in tray si parte solo con l'icona
+        win.show()
+        QTimer.singleShot(200, lambda: apply_layer(win, win.layer))
     return app.exec()
 
 

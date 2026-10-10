@@ -18,7 +18,11 @@ a = Analysis(
     binaries=[],
     # il template del config viaggia dentro il bundle: al primo avvio diventa
     # %LOCALAPPDATA%\iliad counter\config.toml
-    datas=[(str(ROOT / "config.example.toml"), ".")],
+    datas=[
+        (str(ROOT / "config.example.toml"), "."),
+        # l'icona serve anche a runtime: finestre, notifiche, pannello
+        (str(ROOT / "assets" / "iliad.ico"), "assets"),
+    ],
     hiddenimports=[
         # keyring sceglie il backend a runtime via entry point: PyInstaller
         # non lo vede da solo
